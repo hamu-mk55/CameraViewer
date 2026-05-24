@@ -88,12 +88,14 @@ class CameraViewer:
             value=str(cap_h if cap_h is not None else "")
         )
         self.var_save = tkinter.StringVar(value="0")
+        self.var_save_id = tkinter.StringVar(value="")
 
         self.spin_camera_no = None
         self.spin_fps = None
         self.spin_width = None
         self.spin_height = None
         self.spin_capture = None
+        self.entry_save_id = None
 
         self.settings_window = None
 
@@ -217,6 +219,14 @@ class CameraViewer:
         )
         self.spin_capture.pack(fill=tkinter.X, anchor=tkinter.W, pady=(0, 18))
 
+        _label(text="Save ID", style="Section.TLabel", pady=(0, 8))
+        self.entry_save_id = ttk.Entry(
+            self.frame1,
+            width=frame_width,
+            textvariable=self.var_save_id,
+        )
+        self.entry_save_id.pack(fill=tkinter.X, anchor=tkinter.W, pady=(0, 18))
+
         ttk.Separator(self.frame1).pack(fill=tkinter.X, pady=(0, 16))
 
         _label(text="Camera", style="Section.TLabel", pady=(0, 8))
@@ -310,6 +320,7 @@ class CameraViewer:
         self._set_widget_enabled(self.btn_stop_capture, camera_connected)
 
         self._set_widget_enabled(self.spin_camera_no, camera_no_enabled)
+        self._set_widget_enabled(self.entry_save_id, not is_saving)
 
         for widget in (self.spin_fps, self.spin_width, self.spin_height):
             self._set_widget_enabled(widget, capture_settings_enabled)
@@ -542,6 +553,9 @@ class CameraViewer:
 
         return save_num
 
+    def _read_save_id(self):
+        return self.var_save_id.get().strip()
+
     def open_camera(self):
         self._clear_tool_status()
         self.save_started = False
@@ -667,12 +681,13 @@ class CameraViewer:
         save_num = self._read_save_num()
         if save_num is None:
             return
+        save_id = self._read_save_id()
 
         with self.capture_thread.lock:
             self.capture_thread.save_num = save_num
 
         if not self.is_saving():
-            self.capture_thread.start_save()
+            self.capture_thread.start_save(save_id=save_id)
             self.save_started = True
             self._set_save_status(f" Save Images: 0/{self._save_target_text(save_num)}")
 
