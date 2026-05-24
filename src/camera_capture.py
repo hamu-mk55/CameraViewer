@@ -3,6 +3,7 @@ import time
 import datetime
 import threading
 import queue
+import re
 
 import cv2
 
@@ -69,6 +70,10 @@ class CaptureThread(threading.Thread):
         if self.debug:
             self._time0 = time.time()
 
+    def _folder_safe_id(self, save_id):
+        save_id = save_id.strip()
+        return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", save_id)
+
     def run(self):
         next_time = time.perf_counter()
         while not self.stop_event.is_set():
@@ -106,13 +111,15 @@ class CaptureThread(threading.Thread):
             if wait > 0:
                 time.sleep(wait)
 
-    def start_save(self):
+    def start_save(self, save_id=""):
         if self.root_dir is None:
             return
 
         with self.lock:
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.output_dir = os.path.join(self.root_dir, timestamp)
+            safe_id = self._folder_safe_id(save_id)
+            folder_name = f"{timestamp}_{safe_id}" if safe_id else timestamp
+            self.output_dir = os.path.join(self.root_dir, folder_name)
             os.makedirs(self.output_dir, exist_ok=True)
 
             self.save_cnt = 0
