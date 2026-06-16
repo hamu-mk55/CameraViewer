@@ -45,28 +45,32 @@ class Canvas(tkinter.Canvas):
         self.bind("<ButtonPress-1>", self.on_mouse_press)
         self.bind("<B1-Motion>", self.on_mouse_drag)
 
-    def set_image_data(self, image_data: ImageData, scale=1.0):
+    def set_image_data(self, image_data: ImageData, scale=1.0, reset_flg=False):
         if image_data is None:
             return
+
+        first_flg = self.img_data is None or self.img_id is None
 
         self.img_data = image_data
         self.cvs_w = image_data.win_w
         self.cvs_h = image_data.win_h
 
-        self.scale_ini = scale
-        self.scale = scale
-
         if self.img_data.img_org is not None:
-            self.img_data.img_fit(scale=scale)
+            if first_flg or reset_flg:
+                self.scale_ini = scale
+                self.scale = scale
+                self.img_data.img_fit(scale=scale)
 
-            self.update_idletasks()
-            center_cx = max(1, self.winfo_width()) / 2
-            center_cy = max(1, self.winfo_height()) / 2
-            center_ix = self.img_data.img_w_org / 2
-            center_iy = self.img_data.img_h_org / 2
+                self.update_idletasks()
+                center_cx = max(1, self.winfo_width()) / 2
+                center_cy = max(1, self.winfo_height()) / 2
+                center_ix = self.img_data.img_w_org / 2
+                center_iy = self.img_data.img_h_org / 2
 
-            self.offset_x = center_cx - center_ix * self.img_data.fit_ratio
-            self.offset_y = center_cy - center_iy * self.img_data.fit_ratio
+                self.offset_x = center_cx - center_ix * self.img_data.fit_ratio
+                self.offset_y = center_cy - center_iy * self.img_data.fit_ratio
+            else:
+                self.img_data.img_fit(scale=scale)
 
         self._update_image()
 
@@ -178,12 +182,17 @@ class Canvas(tkinter.Canvas):
 
     # Helper-----------------------------------------------------------------------------------------
     def save_image(self):
+        if self.img_data is None or self.img_data.img_org is None:
+            return
+
         img_path = filedialog.asksaveasfilename(initialdir=self.cwd)
         if not img_path:
             return
         cv2.imwrite(img_path, self.img_data.img_org)
 
     def reset_view(self):
+        if self.img_data is None or self.img_data.img_org is None:
+            return
         self.scale = self.scale_ini
         self.img_data.img_fit(scale=self.scale)
 

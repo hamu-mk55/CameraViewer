@@ -39,6 +39,7 @@ class UsbCamera:
         if self._cam is None:
             raise IOError("Camera is not set")
         if not self._cam.isOpened():
+            self.is_opened = False
             raise IOError("Camera is not opened")
         if not self.is_opened:
             raise IOError("Camera is not opened")
@@ -63,15 +64,16 @@ class UsbCamera:
         if self._cam is None:
             raise IOError("Camera is not set")
         if not self._cam.isOpened():
+            self.is_opened = False
             raise IOError("Camera is not opened")
         if not self.is_opened:
             raise IOError("Camera is not opened")
 
         ret, frame = self._cam.read()
 
-        if frame is None:
+        if not ret or frame is None:
             self.is_opened = False
-            return None
+            raise IOError("failed to read frame from camera")
 
         return frame
 

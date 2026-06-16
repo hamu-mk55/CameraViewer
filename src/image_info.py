@@ -38,8 +38,8 @@ class ImageData:
         ratio = min(h_ratio, w_ratio) * self.scale
 
         self.fit_ratio = ratio
-        self.img_h_fit = int(self.img_h_org * ratio)
-        self.img_w_fit = int(self.img_w_org * ratio)
+        self.img_h_fit = max(1, int(self.img_h_org * ratio))
+        self.img_w_fit = max(1, int(self.img_w_org * ratio))
         self._img_fit = cv2.resize(self.img_org, (self.img_w_fit, self.img_h_fit))
         self._img_pil = self.cv2pil(self._img_fit)
 

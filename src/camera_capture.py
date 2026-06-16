@@ -48,6 +48,7 @@ class CaptureThread(threading.Thread):
         target_fps: int = 30,
         output_dir: str = None,
         save_num: int = 1,
+        debug: bool = False,
     ):
         super().__init__(daemon=True)
         self.camera = camera
@@ -64,15 +65,22 @@ class CaptureThread(threading.Thread):
         # save images
         self.root_dir = output_dir
         self.output_dir = None
+        self.error_message = None
 
         # debug
-        self.debug = True
+        self.debug = debug
         if self.debug:
             self._time0 = time.time()
 
     def _folder_safe_id(self, save_id):
         save_id = save_id.strip()
         return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", save_id)
+
+    def _stop_with_error(self, message):
+        self.error_message = message
+        self.camera.is_opened = False
+        self.stop_event.set()
+        self.save_event.clear()
 
     def run(self):
         next_time = time.perf_counter()
@@ -86,25 +94,35 @@ class CaptureThread(threading.Thread):
             try:
                 with self.lock:
                     frame = self.camera.capture()
-            except cv2.error:
-                continue
+            except cv2.error as err:
+                self._stop_with_error(f"camera capture failed: {err}")
+                break
+            except OSError as err:
+                self._stop_with_error(f"camera disconnected: {err}")
+                break
+            except Exception as err:
+                self._stop_with_error(f"unexpected capture error: {err}")
+                break
 
-            if frame is not None:
-                self.frame_queue.put_latest(frame)
+            if frame is None:
+                self._stop_with_error("camera returned no frame")
+                break
 
-                # save image
-                if self.save_event.is_set() and self.output_dir is not None:
-                    with self.lock:
-                        save_path = f"{self.output_dir}/{self.save_cnt:04d}.jpg"
-                        self.save_cnt += 1
+            self.frame_queue.put_latest(frame)
 
-                    cv2.imwrite(save_path, frame)
+            # save image
+            if self.save_event.is_set() and self.output_dir is not None:
+                with self.lock:
+                    save_path = f"{self.output_dir}/{self.save_cnt:04d}.jpg"
+                    self.save_cnt += 1
 
-                # if capture_num <=0, no limitation
-                if self.save_num <= 0:
-                    pass
-                elif self.save_cnt >= self.save_num:
-                    self.stop_save()
+                cv2.imwrite(save_path, frame)
+
+            # if capture_num <=0, no limitation
+            if self.save_num <= 0:
+                pass
+            elif self.save_cnt >= self.save_num:
+                self.stop_save()
 
             # FPS調整
             wait = next_time - time.perf_counter() - 0.002  # 少し余裕を持たせる
