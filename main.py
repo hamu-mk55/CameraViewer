@@ -692,7 +692,20 @@ class CameraViewer:
             self._set_save_status(f" Save Images: 0/{self._save_target_text(save_num)}")
 
     def update_frame(self):
-        if not self.is_previewing():
+        if self.capture_thread is None:
+            return
+
+        if not self.capture_thread.is_alive():
+            error_message = self.capture_thread.error_message
+            self.capture_thread = None
+            self.save_event.clear()
+            self.stop_event.set()
+            self.save_started = False
+            self._set_camera_status()
+            self._set_save_status()
+
+            if error_message:
+                self.msg_status.set(f"ERROR: {error_message}")
             return
 
         try:
